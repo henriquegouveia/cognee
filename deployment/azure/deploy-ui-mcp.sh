@@ -38,7 +38,7 @@ IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || echo latest)
 # unbranded Cognee UI.
 BRAND="${BRAND-context-mesh}"
 UI_TAG="${UI_TAG:-$({ git ls-files -cmo --exclude-standard cognee-frontend deployment/branding |
-  sort -u | xargs shasum 2>/dev/null; echo "brand=$BRAND"; } | shasum | cut -c1-12)}"
+  sort -u | xargs shasum 2>/dev/null; echo "brand=$BRAND api=$API_APP@$RG"; } | shasum | cut -c1-12)}"
 
 log() { printf '\n==> %s\n' "$*"; }
 
@@ -106,6 +106,20 @@ if [ -z "${UI_IMAGE:-}" ]; then
     sed -E -e '/^# syntax=/d' \
       -e 's#^COPY --chmod=755 (docker-entrypoint\.sh) (/usr/local/bin/docker-entrypoint\.sh)#COPY \1 \2\nRUN chmod 755 \2#' \
       cognee-frontend/Dockerfile >"$UI_DOCKERFILE"
+    # Bake the API URL into the bundle. Upstream's frontend reads the backend
+    # from NEXT_PUBLIC_LOCAL_API_URL (frozen at build time) in its login form,
+    # localFetch, LocalProvider and server routes, not from the runtime
+    # COGNEE_BACKEND_URL, so without it every call goes to localhost:8000.
+    # The image is per deployment anyway; its tag includes the API app.
+    python3 - "$UI_DOCKERFILE" "$API_URL" <<'PY'
+import sys
+path, url = sys.argv[1], sys.argv[2]
+text = open(path).read()
+anchor = "ENV NEXT_PUBLIC_IS_CLOUD_ENVIRONMENT=false\n"
+if anchor not in text:
+    sys.exit("deploy-ui-mcp: Dockerfile no longer sets NEXT_PUBLIC_IS_CLOUD_ENVIRONMENT; update the API URL injection")
+open(path, "w").write(text.replace(anchor, anchor + f"ENV NEXT_PUBLIC_LOCAL_API_URL={url}\n"))
+PY
     az acr build -r "$ACR" -t "$UI_REPO:$UI_TAG" -t "$UI_REPO:latest" --target runner \
       --platform linux/amd64 --timeout 3600 -f "$UI_DOCKERFILE" "$UI_CONTEXT" --only-show-errors
   fi
