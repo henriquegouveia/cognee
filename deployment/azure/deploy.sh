@@ -214,6 +214,11 @@ ENVS=(
   # Embed triplets at cognify so improve()'s triplet_enrichment stage runs;
   # without it a remember() with no session_id has no improve stage to run.
   "TRIPLET_EMBEDDING=${TRIPLET_EMBEDDING:-true}"
+  # Trust the Container Apps ingress's X-Forwarded-Proto, so redirects (e.g.
+  # /api/v1/datasets/ -> /api/v1/datasets) keep https. Without it gunicorn
+  # emits http:// Locations, which an https page refuses to follow. Only the
+  # ingress can reach the container, so trusting every proxy address is safe.
+  "FORWARDED_ALLOW_IPS=*"
 )
 # Non-secret LLM/embedding settings copied from the .env when present.
 for k in LLM_PROVIDER LLM_MODEL LLM_ENDPOINT LLM_API_VERSION EMBEDDING_PROVIDER \
