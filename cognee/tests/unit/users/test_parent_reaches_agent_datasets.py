@@ -168,3 +168,40 @@ async def test_get_user_agents_returns_only_the_users_own_agents():
 
     assert {agent.id for agent in await get_user_agents(parent.id)} == {first.id, second.id}
     assert await get_user_agents(first.id) == []
+
+
+async def _make_superuser(user):
+    from cognee.infrastructure.databases.relational import get_relational_engine
+    from cognee.modules.users.methods import get_user
+    from cognee.modules.users.models import User
+
+    async with get_relational_engine().get_async_session() as session:
+        (await session.get(User, user.id)).is_superuser = True
+        await session.commit()
+    return await get_user(user.id)
+
+
+@pytest.mark.asyncio
+async def test_admin_reaches_every_dataset_of_its_tenant_without_a_grant():
+    from cognee.modules.users.permissions.methods import get_specific_user_permission_datasets
+
+    owner = await _user()
+    admin = await _make_superuser(await _user())
+    ungranted = await _dataset_of(owner, f"o-{uuid4()}")
+
+    assert ungranted in await _readable_ids(admin)
+    for permission in ("read", "write", "delete", "share"):
+        assert await get_specific_user_permission_datasets(admin.id, permission, [ungranted])
+
+
+@pytest.mark.asyncio
+async def test_admin_does_not_reach_another_tenants_datasets():
+    tenant_id = uuid4()
+    admin = await _make_superuser(await _user(tenant_id))
+    owner = await _user()
+    elsewhere = await _dataset_of(owner, f"t-{uuid4()}", tenant_id=uuid4())
+    no_tenant = await _dataset_of(owner, f"n-{uuid4()}")
+
+    readable = await _readable_ids(admin)
+    assert elsewhere not in readable
+    assert no_tenant not in readable

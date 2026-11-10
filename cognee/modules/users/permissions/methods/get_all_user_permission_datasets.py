@@ -1,3 +1,6 @@
+from sqlalchemy import select
+
+from cognee.infrastructure.databases.relational import get_relational_engine
 from cognee.modules.data.models.Dataset import Dataset
 from cognee.modules.users.methods.get_user_agents import get_user_agents
 from cognee.modules.users.permissions.methods import get_principal_datasets
@@ -12,6 +15,8 @@ async def get_all_user_permission_datasets(user: User, permission_type: str) -> 
     """
         Return a list of datasets the user has permission for.
         If the user is part of a tenant, return datasets his roles have permission for.
+        An administrator (``is_superuser``) holds every permission on every dataset
+        of their tenant, granted or not.
     Args:
         user
         permission_type
@@ -19,6 +24,9 @@ async def get_all_user_permission_datasets(user: User, permission_type: str) -> 
     Returns:
         list[Dataset]: List of datasets user has permission for
     """
+    if user.is_superuser:
+        return await _tenant_datasets(user.tenant_id)
+
     datasets = []
     # Get all datasets User has explicit access to
     datasets.extend(await get_principal_datasets(user, permission_type))
@@ -53,3 +61,12 @@ async def get_all_user_permission_datasets(user: User, permission_type: str) -> 
             filtered_datasets.append(dataset)
 
     return filtered_datasets
+
+
+async def _tenant_datasets(tenant_id) -> list[Dataset]:
+    """Every dataset of one tenant (``None``: the datasets outside any tenant)."""
+    tenant_filter = (
+        Dataset.tenant_id.is_(None) if tenant_id is None else Dataset.tenant_id == tenant_id
+    )
+    async with get_relational_engine().get_async_session() as session:
+        return list((await session.scalars(select(Dataset).where(tenant_filter))).all())
