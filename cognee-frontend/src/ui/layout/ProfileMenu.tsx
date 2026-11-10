@@ -41,9 +41,11 @@ interface ProfileMenuProps {
   profileHref?: string;
   membersHref?: string | null;
   logoutHref?: string;
+  /** Runs instead of following logoutHref, when signing out needs a request first. */
+  onLogout?: () => void;
 }
 
-export default function ProfileMenu({ userName, userEmail, profileHref = "/settings", membersHref = null, logoutHref = "/api/signout" }: ProfileMenuProps) {
+export default function ProfileMenu({ userName, userEmail, profileHref = "/settings", membersHref = null, logoutHref = "/api/signout", onLogout }: ProfileMenuProps) {
   const { value: isOpen, toggle, setFalse: close } = useBoolean(false);
   const closeCallback = useCallback(() => close(), [close]);
   const containerRef = useOutsideClick<HTMLDivElement>(closeCallback, isOpen);
@@ -122,7 +124,13 @@ export default function ProfileMenu({ userName, userEmail, profileHref = "/setti
 
           <a
             href={logoutHref}
-            onClick={close}
+            onClick={(event) => {
+              close();
+              if (onLogout) {
+                event.preventDefault();
+                onLogout();
+              }
+            }}
             className="flex items-center gap-[10px] rounded-[6px] px-3 py-[10px] hover:bg-white/[0.07] focus-visible:bg-white/[0.07] focus-visible:outline-2 focus-visible:outline-[#BC9BFF]"
             style={{ fontSize: 13, color: "#FF8A80", textDecoration: "none" }}
           >

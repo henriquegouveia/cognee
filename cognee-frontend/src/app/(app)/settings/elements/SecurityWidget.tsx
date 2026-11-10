@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import { trackPageEvent } from "@/modules/analytics";
 import isCloudEnvironment from "@/utils/isCloudEnvironment";
+import { LOCAL_LOGIN_PATH, localSignOut } from "@/utils/localSignOut";
 import styles from "../SettingsPage.module.css";
 import { changeOwnPassword } from "@/modules/users/admin/adminUsers";
 
@@ -87,9 +88,15 @@ export default function SecurityWidget() {
         <h3 className={styles.label}>Session</h3>
         <p className={styles.subtitle}>Sign out of your account on this device.</p>
         <a
-          href={cloud ? "/api/signout" : "/api/local-signout"}
+          href={cloud ? "/api/signout" : LOCAL_LOGIN_PATH}
           className={styles.logout}
-          onClick={() => trackPageEvent({ pageName: "Settings", eventName: "sign_out" })}
+          onClick={(event) => {
+            trackPageEvent({ pageName: "Settings", eventName: "sign_out" });
+            if (!cloud) {
+              event.preventDefault();
+              void localSignOut();
+            }
+          }}
         >
           Log out
         </a>

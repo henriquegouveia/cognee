@@ -18,6 +18,7 @@ import WorkspaceBadge from "./WorkspaceBadge";
 import type { WorkspaceBadgeState } from "./WorkspaceBadge";
 import useBoolean from "@/utils/useBoolean";
 import useOutsideClick from "@/utils/useOutsideClick";
+import { LOCAL_LOGIN_PATH, localSignOut } from "@/utils/localSignOut";
 
 // ── Icons ──
 
@@ -217,7 +218,8 @@ export default function TopBar() {
           userName={cloud ? displayName(userMe?.profile ?? null, user?.name) : user?.name || ""}
           userEmail={user?.email || ""}
           membersHref={cloud ? null : "/members"}
-          logoutHref={cloud ? "/api/signout" : "/api/local-signout"}
+          logoutHref={cloud ? "/api/signout" : LOCAL_LOGIN_PATH}
+          onLogout={cloud ? undefined : () => void localSignOut()}
         />
       </div>
 
