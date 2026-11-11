@@ -247,7 +247,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,  # Now controlled by env var
     allow_credentials=True,
-    allow_methods=["OPTIONS", "GET", "PUT", "POST", "DELETE"],
+    allow_methods=["OPTIONS", "GET", "PUT", "POST", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 # To allow origins, set CORS_ALLOWED_ORIGINS env variable to a comma-separated list, e.g.:
